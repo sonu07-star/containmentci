@@ -1,0 +1,20 @@
+name: local-http-integration
+description: Template for integrating an access probe and containment endpoint.
+identity: alex.synthetic@example.com
+timeout_seconds: 60
+poll_interval_seconds: 2
+targets:
+  - name: Example SaaS session
+    provider: http
+    resource: saas://example/synthetic-session
+    metadata:
+      probe_url: https://security.example.com/probes/synthetic-session
+      probe_method: GET
+      accessible_status: 200
+      containment_url: https://security.example.com/contain/synthetic-session
+      containment_method: POST
+      containment_success_statuses: [200, 202, 204]
+      request_timeout_seconds: 10
+      headers_from_env:
+        Authorization: CONTAINMENTCI_EXAMPLE_AUTHORIZATION
+

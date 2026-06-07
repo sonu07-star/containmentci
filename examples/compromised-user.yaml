@@ -1,0 +1,27 @@
+name: compromised-user
+description: Prove that access is removed across the synthetic enterprise.
+identity: alex.synthetic@example.com
+timeout_seconds: 3
+poll_interval_seconds: 0.1
+targets:
+  - name: Microsoft Entra account
+    provider: simulation
+    resource: entra://tenant/users/alex.synthetic
+    containment_delay_seconds: 0.1
+  - name: AWS temporary credentials
+    provider: simulation
+    resource: aws://production/s3/customer-records
+    containment_delay_seconds: 0.5
+  - name: GitHub personal access token
+    provider: simulation
+    resource: github://acme/production
+    containment_delay_seconds: 0
+  - name: Slack mobile session
+    provider: simulation
+    resource: slack://acme/private-channel
+    containment_supported: false
+  - name: VPN certificate
+    provider: simulation
+    resource: vpn://corp/internal
+    containment_delay_seconds: 0.2
+

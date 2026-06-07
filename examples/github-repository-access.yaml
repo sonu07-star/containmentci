@@ -1,0 +1,16 @@
+name: github-synthetic-collaborator-containment
+description: Prove that a synthetic collaborator loses access to a dedicated private repository.
+identity: containmentci-synthetic
+timeout_seconds: 120
+poll_interval_seconds: 5
+targets:
+  - name: GitHub synthetic collaborator
+    provider: github-repository-access
+    resource: github://YOUR_OWNER/containmentci-test-resource
+    metadata:
+      owner: YOUR_OWNER
+      repo: containmentci-test-resource
+      username: containmentci-synthetic
+      safety_acknowledgement: dedicated-synthetic-identity
+      probe_token_env: CONTAINMENTCI_GITHUB_PROBE_TOKEN
+      admin_token_env: CONTAINMENTCI_GITHUB_ADMIN_TOKEN

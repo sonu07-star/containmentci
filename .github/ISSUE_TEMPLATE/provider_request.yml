@@ -1,0 +1,33 @@
+name: Provider request
+description: Propose a containment provider
+title: "[Provider] "
+labels: ["provider"]
+body:
+  - type: input
+    id: provider
+    attributes:
+      label: Provider or platform
+    validations:
+      required: true
+  - type: textarea
+    id: containment
+    attributes:
+      label: Containment action
+      description: What action should be triggered?
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Access verification
+      description: How can the original credential or session be tested after containment?
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety and restoration
+      description: Required permissions, synthetic test setup, and restoration procedure.
+    validations:
+      required: true
+
