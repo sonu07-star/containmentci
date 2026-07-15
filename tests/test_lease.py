@@ -1,4 +1,5 @@
 from pathlib import Path
+import sqlite3
 import time
 
 import pytest
@@ -8,6 +9,19 @@ from containmentci.lease import FixtureLease, FixtureLeaseConflict
 
 def lease(path: Path, identity: str, resources: set[str]) -> FixtureLease:
     return FixtureLease(identity, resources, ttl_seconds=60, path=path)
+
+
+def lease_expiry(path: Path, lease_id: str) -> float:
+    connection = sqlite3.connect(path)
+    try:
+        row = connection.execute(
+            "SELECT expires_at FROM fixture_leases WHERE lease_id = ?",
+            (lease_id,),
+        ).fetchone()
+    finally:
+        connection.close()
+    assert row is not None
+    return float(row[0])
 
 
 def test_fixture_lease_rejects_identity_and_resource_overlap(tmp_path: Path) -> None:
@@ -31,17 +45,24 @@ def test_fixture_lease_normalizes_aliases_and_renews_expiry(tmp_path: Path) -> N
     first = FixtureLease(
         "ContainmentCI-Bot",
         {"github://Org/Repo"},
-        ttl_seconds=0.05,
+        ttl_seconds=1,
         path=path,
     )
 
     with first.hold():
-        time.sleep(0.12)
+        initial_expiry = lease_expiry(path, first.lease_id)
+        renewed_expiry = initial_expiry
+        deadline = time.monotonic() + 2
+        while renewed_expiry <= initial_expiry and time.monotonic() < deadline:
+            time.sleep(0.02)
+            renewed_expiry = lease_expiry(path, first.lease_id)
+
+        assert renewed_expiry > initial_expiry
         with pytest.raises(FixtureLeaseConflict):
             with FixtureLease(
                 "containmentci-bot",
                 {"github://org/repo"},
-                ttl_seconds=0.05,
+                ttl_seconds=1,
                 path=path,
             ).hold():
                 pass
