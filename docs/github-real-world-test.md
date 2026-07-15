@@ -2,6 +2,8 @@
 
 This test removes a dedicated synthetic GitHub user from a dedicated private repository,
 then proves that the same synthetic user's token can no longer read that repository.
+The administrative token remains able to read the repository as a control witness, so a GitHub
+outage or rate limit cannot be counted as successful containment.
 
 ## Safety Boundary
 
@@ -9,7 +11,8 @@ Use a new repository containing no production code or data. Use a synthetic GitH
 that has no access outside this repository.
 
 The scenario identity and configured GitHub username must match. ContainmentCI rejects a
-mismatch to reduce the risk of removing the wrong collaborator.
+mismatch to reduce the risk of removing the wrong collaborator. Before probing or removal, it
+also calls GitHub's authenticated-user endpoint to bind each token to its actual account.
 
 The scenario must also include:
 
@@ -37,8 +40,9 @@ Edit `examples/github-repository-access.yaml` and replace `YOUR_OWNER`.
 Set secrets only in the current shell:
 
 ```powershell
-$env:CONTAINMENTCI_GITHUB_PROBE_TOKEN = "github_pat_probe"
-$env:CONTAINMENTCI_GITHUB_ADMIN_TOKEN = "github_pat_admin"
+$env:CONTAINMENTCI_GITHUB_PROBE_TOKEN = "replace-with-probe-token"
+$env:CONTAINMENTCI_GITHUB_ADMIN_TOKEN = "replace-with-admin-token"
+$env:CONTAINMENTCI_SIGNING_KEY = "replace-with-at-least-32-random-bytes"
 ```
 
 Validate configuration without making network requests:
@@ -54,11 +58,18 @@ The live approval flag is mandatory:
 ```powershell
 python -m containmentci.cli run examples/github-repository-access.yaml `
   --approve-live `
-  --report .containmentci/github-report.html
+  --report .containmentci/github-report.html `
+  --evidence .containmentci/github-evidence.json
 ```
 
 ContainmentCI first proves the probe token can read the private repository, removes the
-synthetic collaborator, and repeatedly retries the same probe until GitHub returns denial.
+synthetic collaborator, and repeatedly retries the same probe until GitHub returns two explicit
+denials while the admin control token still reads the repository. The test fails if that causal
+sequence is not complete within `max_containment_seconds`. This is strong controlled evidence;
+it cannot exclude every outside administrative action or independent token-lifecycle event.
+
+ContainmentCI prevents overlapping processes that share `.containmentci`, but scheduled jobs on
+separate runners must use a fixture-specific CI concurrency group or external global lock.
 
 ## Restore
 

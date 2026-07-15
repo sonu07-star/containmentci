@@ -2,9 +2,9 @@ services:
   containmentci:
     build: .
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
-      CONTAINMENTCI_SIGNING_KEY: change-me
+      CONTAINMENTCI_SIGNING_KEY: ${CONTAINMENTCI_SIGNING_KEY:?set a strong signing key}
     volumes:
       - containmentci-data:/app/.containmentci
 

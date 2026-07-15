@@ -7,6 +7,9 @@ targets:
   - name: GitHub synthetic collaborator
     provider: github-repository-access
     resource: github://YOUR_OWNER/containmentci-test-resource
+    max_containment_seconds: 30
+    denial_confirmation_attempts: 2
+    control_required: true
     metadata:
       owner: YOUR_OWNER
       repo: containmentci-test-resource

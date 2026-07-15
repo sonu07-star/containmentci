@@ -6,6 +6,8 @@ __pycache__/
 .venv/
 dist/
 *.html
+*-junit.xml
+*-evidence.json
 .env
 .env.*
 !.env.example

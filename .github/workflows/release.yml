@@ -1,0 +1,80 @@
+name: Release to PyPI
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and verify distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Verify tag matches package version
+        shell: bash
+        run: |
+          expected="v$(python -c 'from containmentci import __version__; print(__version__)')"
+          test "$GITHUB_REF_NAME" = "$expected" || {
+            echo "Release tag $GITHUB_REF_NAME does not match $expected" >&2
+            exit 1
+          }
+      - run: python -m pip install -e ".[dev]" build twine
+      - run: ruff check . && pytest -q
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - name: Smoke-test the wheel in a clean environment
+        shell: bash
+        env:
+          CONTAINMENTCI_SIGNING_KEY: release-smoke-only-signing-key-for-wheel
+        run: |
+          wheel=("$GITHUB_WORKSPACE"/dist/*.whl)
+          test "${#wheel[@]}" -eq 1
+          python -m venv "$RUNNER_TEMP/wheel-venv"
+          "$RUNNER_TEMP/wheel-venv/bin/python" -m pip install "${wheel[0]}"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/wheel-venv/bin/containmentci" --version
+          "$RUNNER_TEMP/wheel-venv/bin/containmentci" demo \
+            --evidence wheel-evidence.json
+          "$RUNNER_TEMP/wheel-venv/bin/containmentci" verify wheel-evidence.json
+      - name: Smoke-test the source distribution in a clean environment
+        shell: bash
+        env:
+          CONTAINMENTCI_SIGNING_KEY: release-smoke-only-signing-key-for-sdist
+        run: |
+          sdist=("$GITHUB_WORKSPACE"/dist/*.tar.gz)
+          test "${#sdist[@]}" -eq 1
+          python -m venv "$RUNNER_TEMP/sdist-venv"
+          "$RUNNER_TEMP/sdist-venv/bin/python" -m pip install "${sdist[0]}"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/sdist-venv/bin/containmentci" --version
+          "$RUNNER_TEMP/sdist-venv/bin/containmentci" demo \
+            --evidence sdist-evidence.json
+          "$RUNNER_TEMP/sdist-venv/bin/containmentci" verify sdist-evidence.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish:
+    name: Publish with PyPI Trusted Publishing
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/containmentci
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: python-package-distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
