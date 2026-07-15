@@ -3,22 +3,125 @@ name: CI
 on:
   push:
   pull_request:
+  schedule:
+    - cron: "23 4 * * 0"
+  workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      CONTAINMENTCI_SIGNING_KEY: ci-only-signing-key-for-source-tree-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: pytest -q
+      - name: Run safe controlled-proof demo
+        run: |
+          containmentci demo \
+            --report demo-report.html \
+            --junit demo-junit.xml \
+            --evidence demo-evidence.json
+          containmentci verify demo-evidence.json
       - name: Run containment demo
-        run: containmentci run examples/compromised-user.yaml --report containment-report.html || test $? -eq 1
-      - uses: actions/upload-artifact@v4
+        run: |
+          containmentci run examples/compromised-user.yaml \
+            --report containment-report.html \
+            --evidence containment-evidence.json || test $? -eq 1
+      - uses: actions/upload-artifact@v7
+        if: always() && matrix.python-version == '3.12'
         with:
-          name: containment-report
-          path: containment-report.html
+          name: source-tree-smoke-results
+          path: |
+            demo-report.html
+            demo-junit.xml
+            demo-evidence.json
+            containment-report.html
+            containment-evidence.json
+
+  package-smoke:
+    name: Build and smoke-test wheel + sdist
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      CONTAINMENTCI_SIGNING_KEY: ci-only-signing-key-for-package-smoke-tests
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Build both distributions
+        run: |
+          python -m pip install build twine
+          python -m build
+          python -m twine check dist/*
+      - name: Smoke-test the wheel in a clean environment
+        shell: bash
+        run: |
+          wheel=("$GITHUB_WORKSPACE"/dist/*.whl)
+          test "${#wheel[@]}" -eq 1
+          python -m venv "$RUNNER_TEMP/wheel-venv"
+          "$RUNNER_TEMP/wheel-venv/bin/python" -m pip install "${wheel[0]}"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/wheel-venv/bin/containmentci" --version
+          "$RUNNER_TEMP/wheel-venv/bin/containmentci" demo \
+            --evidence wheel-evidence.json
+          "$RUNNER_TEMP/wheel-venv/bin/containmentci" verify wheel-evidence.json
+      - name: Smoke-test the source distribution in a clean environment
+        shell: bash
+        run: |
+          sdist=("$GITHUB_WORKSPACE"/dist/*.tar.gz)
+          test "${#sdist[@]}" -eq 1
+          python -m venv "$RUNNER_TEMP/sdist-venv"
+          "$RUNNER_TEMP/sdist-venv/bin/python" -m pip install "${sdist[0]}"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/sdist-venv/bin/containmentci" --version
+          "$RUNNER_TEMP/sdist-venv/bin/containmentci" demo \
+            --evidence sdist-evidence.json
+          "$RUNNER_TEMP/sdist-venv/bin/containmentci" verify sdist-evidence.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  action-smoke:
+    name: Smoke-test local composite Action
+    runs-on: ubuntu-latest
+    env:
+      CONTAINMENTCI_SIGNING_KEY: ci-only-signing-key-for-action-smoke-tests
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run local Action against a safe all-pass scenario
+        id: containment
+        uses: ./
+        with:
+          scenario: examples/ci-smoke.yaml
+          report: artifacts/action-report.html
+          junit: artifacts/action-junit.xml
+          evidence: artifacts/action-evidence.json
+      - name: Verify Action outputs and signed evidence
+        shell: bash
+        env:
+          REPORT_PATH: ${{ steps.containment.outputs.report }}
+          JUNIT_PATH: ${{ steps.containment.outputs.junit }}
+          EVIDENCE_PATH: ${{ steps.containment.outputs.evidence }}
+        run: |
+          test -s "$REPORT_PATH"
+          test -s "$JUNIT_PATH"
+          test -s "$EVIDENCE_PATH"
+          containmentci verify "$EVIDENCE_PATH"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: composite-action-smoke-results
+          path: artifacts/
 

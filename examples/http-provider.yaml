@@ -7,14 +7,23 @@ targets:
   - name: Example SaaS session
     provider: http
     resource: saas://example/synthetic-session
+    max_containment_seconds: 30
+    denial_confirmation_attempts: 2
+    control_required: true
     metadata:
+      safety_acknowledgement: dedicated-synthetic-identity
       probe_url: https://security.example.com/probes/synthetic-session
       probe_method: GET
       accessible_status: 200
+      denied_statuses: [401]
       containment_url: https://security.example.com/contain/synthetic-session
       containment_method: POST
       containment_success_statuses: [200, 202, 204]
       request_timeout_seconds: 10
       headers_from_env:
         Authorization: CONTAINMENTCI_EXAMPLE_AUTHORIZATION
+      control_headers_from_env:
+        Authorization: CONTAINMENTCI_EXAMPLE_CONTROL_AUTHORIZATION
+      containment_headers_from_env:
+        Authorization: CONTAINMENTCI_EXAMPLE_ADMIN_AUTHORIZATION
 

@@ -24,6 +24,20 @@ body:
     validations:
       required: true
   - type: textarea
+    id: decisions
+    attributes:
+      label: Explicit denial and indeterminate responses
+      description: Which responses prove authorization denial, and which indicate throttling, outage, or ambiguity?
+    validations:
+      required: true
+  - type: textarea
+    id: control
+    attributes:
+      label: Healthy control witness
+      description: How can an untouched credential prove the same resource remains reachable?
+    validations:
+      required: true
+  - type: textarea
     id: safety
     attributes:
       label: Safety and restoration

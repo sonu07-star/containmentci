@@ -15,7 +15,9 @@ Live providers must:
 - Validate that the target identity is synthetic.
 - Keep credentials outside scenario files and evidence.
 - Treat provider API acknowledgement as evidence, not proof of containment.
-- Include mocked tests covering successful containment and persistent access.
+- Return `INDETERMINATE` for throttling, outages, transport failures, and unknown responses.
+- Prefer an independent control-credential probe against the same resource.
+- Include mocked tests covering successful containment, persistent access, and ambiguous outages.
 - Document minimum permissions and restoration steps.
 
 ## Local Checks

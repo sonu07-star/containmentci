@@ -4,18 +4,29 @@ build-backend = "hatchling.build"
 
 [project]
 name = "containmentci"
-version = "0.2.0"
-description = "Continuously prove that identity containment controls actually work."
+version = "0.3.0"
+description = "Prove identity containment controls revoke real access within an SLO."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "sonu07-star" }]
-keywords = ["cybersecurity", "incident-response", "containment", "identity-security"]
+keywords = [
+  "cybersecurity",
+  "incident-response",
+  "containment",
+  "identity-security",
+  "credential-revocation",
+  "security-testing",
+  "devsecops",
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Security",
 ]
 dependencies = [
@@ -40,6 +51,8 @@ containmentci = "containmentci.cli:app"
 Homepage = "https://github.com/sonu07-star/containmentci"
 Issues = "https://github.com/sonu07-star/containmentci/issues"
 Repository = "https://github.com/sonu07-star/containmentci"
+Documentation = "https://github.com/sonu07-star/containmentci#readme"
+Changelog = "https://github.com/sonu07-star/containmentci/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["containmentci"]

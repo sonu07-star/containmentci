@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -55,12 +56,26 @@ class RunStore:
     def get(self, run_id: str) -> RunResult | None:
         with self._connect() as connection:
             row = connection.execute("SELECT payload FROM runs WHERE id = ?", (run_id,)).fetchone()
-        return RunResult.model_validate_json(row["payload"]) if row else None
+        return self._load_run(row["payload"]) if row else None
 
     def list(self, limit: int = 50) -> list[RunResult]:
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT payload FROM runs ORDER BY started_at DESC LIMIT ?", (limit,)
             ).fetchall()
-        return [RunResult.model_validate_json(row["payload"]) for row in rows]
+        return [self._load_run(row["payload"]) for row in rows]
 
+    def _load_run(self, payload: str) -> RunResult:
+        """Load stored runs while migrating only known pre-0.3 fields.
+
+        External evidence verification stays strict. Compatibility is intentionally scoped to
+        the local database so upgrades do not destroy a user's historical run records.
+        """
+        raw = json.loads(payload)
+        raw.setdefault("evidence_key_mode", "development-hmac")
+        for check in raw.get("checks", []):
+            legacy_seconds = check.pop("containment_seconds", None)
+            if "proof_seconds" not in check:
+                check["proof_seconds"] = legacy_seconds
+            check.setdefault("first_denial_seconds", None)
+        return RunResult.model_validate(raw)

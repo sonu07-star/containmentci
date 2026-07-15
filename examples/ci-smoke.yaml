@@ -1,0 +1,13 @@
+name: ci-artifact-smoke
+description: Safe all-pass scenario used to verify the packaged CLI and composite Action.
+identity: synthetic-ci@containmentci.local
+timeout_seconds: 1
+poll_interval_seconds: 0.025
+targets:
+  - name: Synthetic credential
+    provider: simulation
+    resource: ci://credential
+    containment_delay_seconds: 0.05
+    max_containment_seconds: 0.4
+    denial_confirmation_attempts: 2
+    control_required: true

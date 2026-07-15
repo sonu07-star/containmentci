@@ -1,0 +1,85 @@
+name: ContainmentCI
+description: Prove identity containment outcomes and gate CI on containment SLOs.
+author: sonu07-star
+
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  scenario:
+    description: Path to a ContainmentCI YAML scenario.
+    required: true
+  report:
+    description: Path for the human-readable HTML summary report.
+    required: false
+    default: containment-report.html
+  junit:
+    description: Path for the JUnit XML result.
+    required: false
+    default: containment-junit.xml
+  evidence:
+    description: Path for the signed JSON evidence bundle.
+    required: false
+    default: containment-evidence.json
+  python-version:
+    description: Python version used to run ContainmentCI.
+    required: false
+    default: "3.12"
+  approve-live:
+    description: Authorize state-changing providers. Keep false for simulations.
+    required: false
+    default: "false"
+
+outputs:
+  report:
+    description: Path to the generated HTML summary report.
+    value: ${{ steps.paths.outputs.report }}
+  junit:
+    description: Path to the generated JUnit XML result.
+    value: ${{ steps.paths.outputs.junit }}
+  evidence:
+    description: Path to the generated signed JSON evidence bundle.
+    value: ${{ steps.paths.outputs.evidence }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install ContainmentCI
+      shell: bash
+      run: python -m pip install "$GITHUB_ACTION_PATH"
+    - name: Run containment proof
+      shell: bash
+      env:
+        CONTAINMENTCI_ACTION_SCENARIO: ${{ inputs.scenario }}
+        CONTAINMENTCI_ACTION_REPORT: ${{ inputs.report }}
+        CONTAINMENTCI_ACTION_JUNIT: ${{ inputs.junit }}
+        CONTAINMENTCI_ACTION_EVIDENCE: ${{ inputs.evidence }}
+        CONTAINMENTCI_ACTION_APPROVE_LIVE: ${{ inputs.approve-live }}
+      run: |
+        args=(
+          run "$CONTAINMENTCI_ACTION_SCENARIO"
+          --report "$CONTAINMENTCI_ACTION_REPORT"
+          --junit "$CONTAINMENTCI_ACTION_JUNIT"
+          --evidence "$CONTAINMENTCI_ACTION_EVIDENCE"
+        )
+        if [[ "$CONTAINMENTCI_ACTION_APPROVE_LIVE" == "true" ]]; then
+          args+=(--approve-live)
+        fi
+        containmentci "${args[@]}"
+    - name: Publish artifact paths
+      id: paths
+      if: always()
+      shell: bash
+      env:
+        CONTAINMENTCI_ACTION_REPORT: ${{ inputs.report }}
+        CONTAINMENTCI_ACTION_JUNIT: ${{ inputs.junit }}
+        CONTAINMENTCI_ACTION_EVIDENCE: ${{ inputs.evidence }}
+      run: |
+        printf 'report=%s\n' "$CONTAINMENTCI_ACTION_REPORT" >> "$GITHUB_OUTPUT"
+        printf 'junit=%s\n' "$CONTAINMENTCI_ACTION_JUNIT" >> "$GITHUB_OUTPUT"
+        printf 'evidence=%s\n' "$CONTAINMENTCI_ACTION_EVIDENCE" >> "$GITHUB_OUTPUT"
