@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 from containmentci.models import RunResult
@@ -19,7 +20,7 @@ class RunStore:
         return connection
 
     def _initialize(self) -> None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS runs (
@@ -33,9 +34,10 @@ class RunStore:
                 )
                 """
             )
+            connection.execute("CREATE INDEX IF NOT EXISTS runs_started_at ON runs (started_at DESC)")
 
     def save(self, run: RunResult) -> None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             connection.execute(
                 """
                 INSERT OR REPLACE INTO runs
@@ -54,12 +56,12 @@ class RunStore:
             )
 
     def get(self, run_id: str) -> RunResult | None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             row = connection.execute("SELECT payload FROM runs WHERE id = ?", (run_id,)).fetchone()
         return self._load_run(row["payload"]) if row else None
 
     def list(self, limit: int = 50) -> list[RunResult]:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             rows = connection.execute(
                 "SELECT payload FROM runs ORDER BY started_at DESC LIMIT ?", (limit,)
             ).fetchall()
